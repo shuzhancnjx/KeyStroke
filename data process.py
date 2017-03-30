@@ -78,8 +78,7 @@ for element in ob:
         tmp, time=[], None
         for val in value.getElementsByTagName('value'):
             if val.getAttribute('baseType')=='dateTime':
-               time = val.firstChild.nodeValue
-                
+               time = datetime.strptime(val.firstChild.nodeValue, '%Y-%m-%dT%H:%M:%S.%fZ')  
             if val.getAttribute('baseType')=='string':
                 try:
                     mediate=json.loads(val.firstChild.nodeValue)
@@ -94,7 +93,7 @@ for element in ob:
                         parsed.extend(tmp)
                         
                     elif mediate['name']=='UPDATESELECTION':
-                        tmp.extend( [time, 'cursor move to %d from %d' % (mediate['selection']['endPos'], mediate['selection']['startPos'])] )
+                        tmp.extend( [time, 'cursor move to %d' % (mediate['selection']['endPos']) ] )
                         parsed.append(tmp)
                 except Exception, err:
                     print err
@@ -135,62 +134,62 @@ def handleNonBreaking(record, preIns):
                 new.remove(('INS', preIns, u'\xa0' ))
     return sorted(list(new), key=lambda x: x[1])
                 
-        
-
-        
-                    
 ######text construction#############
 text=''
-
-for i, x in enumerate(parsed):
-    if len(x)<=2:
+texts=[]
+for i, records in enumerate(parsed):
+    if len(records)<=2:
         continue 
-    for edit, loc, letter in x[2]:
-        if edit =='INS':
-            text= text[:loc-1]+ (str(letter) if letter!=u'\xa0' else ' ') + text[loc-1:]
-        elif edit=='DEL':
-            text= text[:loc-1]+text[loc-1+len(letter):]
+    edit, loc, letter = records[2]
+    if edit =='INS':
+        text= text[:loc-1]+ (str(letter) if letter!=u'\xa0' else ' ') + text[loc-1:]
+    elif edit=='DEL':
+        text= text[:loc-1]+text[loc-1+len(letter):]
 text
 ########catching valid wrods#####################
 
 words=[]
-curword=''
-preIns=0
-for i, x in enumerate(parsed):
-    if len(x)<3:
-        if curword!='':
-            words.append( [curword, loc])
-        curword=''
-        continue 
-    
-    for edit, loc, letter in x[2]:
-        if edit =='INS':
-            if letter==u'\xa0':
-                if curword!='':
-                    words.append([curword, loc])
-                curword=''
-            elif len(letter)==2 and (letter[0]==' ' or letter[1]==' '):
-                curword+=letter[1] if letter[1]!=' ' else letter[0]
-            elif letter in '.,:?! ':
-                words.append( [curword, loc])
-                curword=''
-            else:
-                curword+= letter
+curword=[]
+L_parsed=len(parsed)
+for i, records in enumerate(parsed):
+    if len(records)==2:
+        if curword!=[]:
+            words.append(curword)
+            words.append( records[1] )
+            curword=[]
         else:
+            words.append( records[1] )
+    
+    else:
+        edit, loc, letter=records[2]
+        if edit=='INS':
             if letter==u'\xa0':
-                continue 
-            elif len(letter)==2 and letter[0]==' ':
-                curword+=str([str(letter[1])])
-                words.append([curword, loc])
-                curword=''
+                if i+1<L_parsed and len(parsed[i+1])>2 and parsed[i+1][2][0]=='INS':
+                    words.append(curword)
+                    curword=[]
+            elif len(letter)==2 and (letter[0]==' ' or letter[1]==' '):
+                curword.append( (loc+1,letter[1]) if letter[1]!=' ' else (loc,letter[0]))
             elif letter in '.,:?! ':
-                if curword!='':
-                    words.append([curword, loc])
-                curword=str([str(letter)])
+                words.append(curword)
+                if letter!=' ':
+                    words.append([(loc, letter)])
+                curword=[]
             else:
-                curword+= str([str(letter)])
+                curword+= (loc, letter), 
+        else:
+            if letter!=u'\xa0':
+                if len(letter)==2:
+                    curword.append( [loc, letter[1]] if letter[1]!=' ' else [loc-1, letter[0]]  ) 
+                    words.append(curword)
+                    curword=[]
+                elif letter in '.,:?! ':
+                    if curword!=[]:
+                        words.append(curword)
+                    curword=[[loc, letter]]
+                else:
+                    curword.append( [loc, letter])
 
-words
+words[:100]
 
 with open('words.txt', 'w') as f:
     for x in words:
