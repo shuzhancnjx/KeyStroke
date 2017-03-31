@@ -140,6 +140,7 @@ texts=[]
 for i, records in enumerate(parsed):
     if len(records)<=2:
         continue 
+    
     edit, loc, letter = records[2]
     if edit =='INS':
         text= text[:loc-1]+ (str(letter) if letter!=u'\xa0' else ' ') + text[loc-1:]
@@ -152,7 +153,7 @@ words=[]
 curword=[]
 L_parsed=len(parsed)
 for i, records in enumerate(parsed):
-    if len(records)==2:
+    if len(records)==2: # handle cursor move
         if curword!=[]:
             words.append(curword)
             words.append( records[1] )
@@ -189,12 +190,20 @@ for i, records in enumerate(parsed):
                 else:
                     curword.append( [loc, letter])
 
-words[:100]
-
+words= filter(lambda x: not isinstance(x, str), words)
 with open('words.txt', 'w') as f:
     for x in words:
         f.write(str(x)+'\n')
+######## processing words#####
 
+
+
+            
+
+       
+    
+    
+        
 ########parsing datetime###############
 datetime.strptime(parsed[0][0], '%Y-%m-%dT%H:%M:%S.%fZ')  
 
